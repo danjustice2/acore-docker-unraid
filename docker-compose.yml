@@ -1,4 +1,4 @@
-# extension field: https://docs.docker.com/compose/compose-file/compose-file-v3/#extension-fields
+# Extension fields for re-use
 x-networks: &networks
   networks:
     - ac-network
@@ -16,7 +16,7 @@ services:
     image: mysql:8.0
     restart: unless-stopped
     cap_add:
-      - SYS_NICE # CAP_SYS_NICE
+      - SYS_NICE
     ports:
       - ${DOCKER_DB_EXTERNAL_PORT:-63306}:3306
     expose:
@@ -24,9 +24,7 @@ services:
     environment:
       - MYSQL_ROOT_PASSWORD=${DOCKER_DB_ROOT_PASSWORD:-password}
     volumes:
-      - type: volume
-        source: ac-database
-        target: /var/lib/mysql
+      - /mnt/user/appdata/ac-database:/var/lib/mysql
     healthcheck:
       test: '/usr/bin/mysql --user=root --password=$$MYSQL_ROOT_PASSWORD --execute "SHOW DATABASES;"'
       interval: 2s
@@ -34,12 +32,12 @@ services:
       retries: 20
 
   ac-worldserver:
-    container_name: acore-docker-ac-worldserver-1 # fixed container name to simplify the attach process
+    container_name: acore-docker-ac-worldserver-1
     <<: *ac-shared-conf
     stdin_open: true
     tty: true
     cap_add:
-      - SYS_NICE # CAP_SYS_NICE
+      - SYS_NICE
     image: acore/ac-wotlk-worldserver:${DOCKER_IMAGE_TAG:-master}
     restart: unless-stopped
     privileged: true
@@ -51,8 +49,7 @@ services:
       - 8085
     volumes:
       - ./scripts/lua:/azerothcore/env/dist/bin/lua_scripts/scripts
-      - "${DOCKER_VOL_CLIENT_DATA:-ac-client-data}:/azerothcore/env/dist/data:ro"
-
+      - /mnt/user/appdata/ac-client-data:/azerothcore/env/dist/data:ro
     environment:
       AC_DATA_DIR: "/azerothcore/env/dist/data"
       AC_LOGS_DIR: "/azerothcore/env/dist/logs"
@@ -91,9 +88,7 @@ services:
 
   ac-eluna-ts-dev:
     image: acore/eluna-ts:master
-    # the build:lib is done in the healthcheck
     command: sh -c "cd /eluna-ts/modules && touch index.ts && npm install && cd /eluna-ts && npm run dev"
-    # small workaround to make the other services to wait for the eluna-ts build
     healthcheck:
       test: sh -c "cd /eluna-ts/modules/eluna-ts && npm run build:lib && npm run build"
       timeout: 60s
@@ -102,16 +97,14 @@ services:
       start_period: 10s
     restart: unless-stopped
     volumes:
-      # from typescript
       - ./scripts/typescript:/eluna-ts/modules
-      # to lua
       - ./scripts/lua:/eluna-ts/dist/
 
   ac-client-data:
     <<: *networks
     image: acore/ac-wotlk-client-data:${DOCKER_IMAGE_TAG:-master}
     volumes:
-      - "${DOCKER_VOL_CLIENT_DATA:-ac-client-data}:/azerothcore/env/dist/data"
+      - /mnt/user/appdata/ac-client-data:/azerothcore/env/dist/data
 
   ac-db-import:
     <<: *ac-shared-conf
@@ -137,9 +130,7 @@ services:
       - PMA_ARBITRARY=1
     profiles: []
 
-volumes:
-  ac-database:
-  ac-client-data:
-
 networks:
   ac-network:
+
+# No named volumes block needed, all volumes mapped to disk.
